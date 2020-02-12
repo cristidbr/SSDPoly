@@ -1,4 +1,6 @@
-from torch import nn
+import torch
+import torch.nn as nn
+
 
 from ssd.modeling import registry
 from ssd.utils.model_zoo import load_state_dict_from_url

@@ -1,0 +1,28 @@
+MODEL:
+  NUM_CLASSES: 2
+  BOX_HEAD:
+    PREDICTOR: 'SSDLiteBoxPredictor'
+  BACKBONE:
+    NAME: 'coordconv'
+    OUT_CHANNELS: (24, 80, 64, 32, 32, 16)
+    PRETRAINED: False
+  PRIORS:
+    FEATURE_MAPS: [20, 10, 5, 3, 2, 1]
+    STRIDES: [16, 32, 64, 100, 150, 300]
+    MIN_SIZES: [60, 105, 150, 195, 240, 285]
+    MAX_SIZES: [105, 150, 195, 240, 285, 330]
+    ASPECT_RATIOS: [[2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3]]
+    BOXES_PER_LOCATION: [6, 6, 6, 6, 6, 6]
+INPUT:
+  IMAGE_SIZE: 320
+DATASETS:
+  TRAIN: ("perspective_boxes", )
+  TEST: ("perspective_boxes", )
+SOLVER:
+  MAX_ITER: 2500
+  LR_STEPS: [80000, 100000]
+  GAMMA: 0.1
+  BATCH_SIZE: 48
+  LR: 1e-3
+
+OUTPUT_DIR: 'outputs/coordconv_ssd320_perspective_boxes'

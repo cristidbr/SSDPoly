@@ -5,6 +5,7 @@ __pycache__
 ext/build/
 ext/torch_extension.egg-info/
 dist/
+outputs/
 *.egg-info
 
 # pytorch/python/numpy formats

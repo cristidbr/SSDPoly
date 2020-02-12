@@ -52,11 +52,18 @@ class DatasetCatalog:
             "data_dir": "val2014",
             "ann_file": "annotations/instances_val2014.json"
         },
+        'perspective_boxes': {
+        },
     }
 
     @staticmethod
     def get(name):
-        if "voc" in name:
+
+        if name == 'perspective_boxes':
+            attrs = DatasetCatalog.DATASETS[ name ]
+            return dict(factory="PerspectiveBoxes", args=attrs)
+
+        elif "voc" in name:
             voc_root = DatasetCatalog.DATA_DIR
             if 'VOC_ROOT' in os.environ:
                 voc_root = os.environ['VOC_ROOT']
@@ -67,6 +74,7 @@ class DatasetCatalog:
                 split=attrs["split"],
             )
             return dict(factory="VOCDataset", args=args)
+            
         elif "coco" in name:
             coco_root = DatasetCatalog.DATA_DIR
             if 'COCO_ROOT' in os.environ:
