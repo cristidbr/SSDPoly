@@ -305,9 +305,9 @@ class PerspectiveBoxes( torch.utils.data.Dataset ):
         return self.length
 
     def _get_annotation( self, index ):
-        return ( np.array( [ self.boxes[ index ] ], dtype=np.float32 ),
-                np.array( [ 1 ], dtype=np.int64 ),
-                np.array( [ 0 ], dtype=np.uint8 ) )
+        return ( np.array( [ self.boxes[ 0 ][ index ], self.boxes[ 1 ][ index ] ], dtype=np.float32 ),
+                np.array( [ 1, 2 ], dtype=np.int64 ),
+                np.array( [ 0, 0 ], dtype=np.uint8 ) )
 
     def get_annotation( self, index ):
         return ( 'img_' + str( index ), self._get_annotation( index ) )

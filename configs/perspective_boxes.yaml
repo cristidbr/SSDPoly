@@ -22,7 +22,9 @@ SOLVER:
   MAX_ITER: 12000
   LR_STEPS: [5000, 10000]
   GAMMA: 0.1
-  BATCH_SIZE: 48
+  BATCH_SIZE: 96
   LR: 1e-3
+TEST:
+  BATCH_SIZE: 64
 
 OUTPUT_DIR: 'outputs/coordconv_ssd320_perspective_boxes'
