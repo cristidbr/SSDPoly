@@ -137,6 +137,7 @@ def Box3DPoints( width, height ):
     
     return points
 
+
 class RotatedBoundingBoxSampler( BoundingBoxSampler ):
     """ 
     Sampler for rotated bounding boxes
@@ -179,7 +180,7 @@ class RotatedBoundingBoxSampler( BoundingBoxSampler ):
         points = np.array( points, dtype = np.int )
         
         contours = self.RotatedBoxContour( points )
-        boxes = self.EnclosingBoundingBox( points )
+        boxes = self.InternalMinMaxBoxes( contours )
         
         return ( contours, boxes )
     
@@ -197,6 +198,53 @@ class RotatedBoundingBoxSampler( BoundingBoxSampler ):
         max_y = np.clip( np.max( boxes[ :, :, 1 ], axis = 1 ), 0, self.height )
 
         return np.array( [ min_x, min_y, max_x, max_y ] ).T
+
+    def InternalMinMaxBoxes( self, boxes ):
+        # clip contour points to image dimensions
+        boxes[ :, :, 0 ] = np.clip( boxes[ :, :, 0 ], 0, self.width )
+        boxes[ :, :, 1 ] = np.clip( boxes[ :, :, 1 ], 0, self.height )
+        
+        # create candidate arrays
+        box_a_pt = np.hstack( ( boxes[ :, 0, : ], boxes[ :, 2, : ] ) )
+        box_b_pt = np.hstack( ( boxes[ :, 1, : ], boxes[ :, 3, : ] ) )
+        
+        # box areas
+        box_a_areas = np.abs( box_a_pt[ :, 2 ] - box_a_pt[ :, 0 ] ) * np.abs( box_a_pt[ :, 3 ] - box_a_pt[ :, 1 ] )
+        box_b_areas = np.abs( box_b_pt[ :, 2 ] - box_b_pt[ :, 0 ] ) * np.abs( box_b_pt[ :, 3 ] - box_b_pt[ :, 1 ] )
+        
+        # select small boxes
+        boxes_sm = np.zeros_like( box_a_pt )
+        boxes_lg = np.zeros_like( box_b_pt )
+
+        # compare areas
+        box_select_sm = box_a_areas < box_b_areas
+        box_select_lg = np.logical_not( box_select_sm )
+
+        # create arrays
+        boxes_sm[ box_select_sm ] = box_a_pt[ box_select_sm ]
+        boxes_lg[ box_select_sm ] = box_b_pt[ box_select_sm ]
+        boxes_sm[ box_select_lg ] = box_b_pt[ box_select_lg ]
+        boxes_lg[ box_select_lg ] = box_a_pt[ box_select_lg ]
+        
+        def enclosingBoxes( bx ):
+            min_x = np.min( np.vstack( ( bx[ :, 0 ], bx[ :, 2 ] ) ).T, axis = 1 ) 
+            max_x = np.max( np.vstack( ( bx[ :, 0 ], bx[ :, 2 ] ) ).T, axis = 1 )
+            min_y = np.min( np.vstack( ( bx[ :, 1 ], bx[ :, 3 ] ) ).T, axis = 1 )
+            max_y = np.max( np.vstack( ( bx[ :, 1 ], bx[ :, 3 ] ) ).T, axis = 1 )
+            return np.array( [ min_x, min_y, max_x, max_y ] ).T
+        
+        def normalizeBoxes( bx ):
+            bx = np.array( bx, dtype = np.float ) 
+            bx[ :, 0 ] = bx[ :, 0 ] / self.width
+            bx[ :, 2 ] = bx[ :, 2 ] / self.width
+            bx[ :, 1 ] = bx[ :, 1 ] / self.height
+            bx[ :, 3 ] = bx[ :, 3 ] / self.height
+            return bx
+        
+        return [ 
+            normalizeBoxes( enclosingBoxes( boxes_sm ) ), 
+            normalizeBoxes( enclosingBoxes( boxes_lg ) )
+        ]        
     
     def NormalizedEnclosingBoundingBox( self, boxes ):
         boxes = np.array( boxes, dtype = np.float ) 
@@ -211,11 +259,11 @@ class RotatedBoundingBoxSampler( BoundingBoxSampler ):
         cv2.drawContours( img, [ contour ], 0, ( 255, 255, 255 ), -1 )
         return img
     
-    def DrawBoundingBox( self, img, box ):
+    def DrawBoundingBox( self, img, box, color = ( 255, 0, 0 ) ):
         cv2.rectangle( img, 
                       ( int( box[ 0 ] * self.width ), int( box[ 1 ] * self.height ) ), 
                       ( int( box[ 2 ] * self.width ), int( box[ 3 ] * self.height ) ), 
-                      ( 255, 0, 0 ), 2 )
+                      color, 2 )
         return img
     
 
@@ -223,9 +271,9 @@ class RotatedBoundingBoxSampler( BoundingBoxSampler ):
 
 class PerspectiveBoxes( torch.utils.data.Dataset ):
     
-    class_names = [ 'background', 'label' ]
+    class_names = [ 'background', 'label_sm, label_lg' ]
 
-    def __init__( self, examples = 10000, transform = None, target_transform = None ):
+    def __init__( self, examples = 10240, transform = None, target_transform = None ):
         # as you would do normally
         self.generator = RotatedBoundingBoxSampler()
         self.length = examples
@@ -238,9 +286,9 @@ class PerspectiveBoxes( torch.utils.data.Dataset ):
         image = self.generator.DrawRotatedRectangle( self.contours[ index ] )
         
         # load the bounding boxes in x1, y1, x2, y2 order.
-        boxes = np.array( [ self.boxes[ index ] ], dtype = np.float32 )
+        boxes = np.array( [ self.boxes[ 0 ][ index ], self.boxes[ 1 ][ index ] ], dtype = np.float32 )
         # and labels
-        labels = np.array( [ [ 1 ] ], dtype=np.int64)
+        labels = np.array( [ [ 1, 2 ] ], dtype=np.int64)
 
         if self.transform:
             image, boxes, labels = self.transform(image, boxes, labels)
