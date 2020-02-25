@@ -23,6 +23,7 @@ def convert_locations_to_corner_boxes(locations, priors, coordinate_variance):
         priors = priors.unsqueeze(0)
 
     prior_sizes = priors[..., 2:] - priors[..., :2]
+    prior_sizes = torch.cat( [ prior_sizes, prior_sizes ], dim = 1 )
     return 
         ( locations * coordinate_variance * prior_sizes ) + priors
 

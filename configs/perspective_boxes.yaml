@@ -1,5 +1,5 @@
 MODEL:
-  NUM_CLASSES: 3
+  NUM_CLASSES: 2
   BOX_HEAD:
     PREDICTOR: 'SSDLiteBoxPredictor'
   BACKBONE:
@@ -22,9 +22,7 @@ SOLVER:
   MAX_ITER: 2500
   LR_STEPS: [1000, 2000]
   GAMMA: 0.1
-  BATCH_SIZE: 96
+  BATCH_SIZE: 48
   LR: 1e-3
-TEST:
-  BATCH_SIZE: 64
 
 OUTPUT_DIR: 'outputs/coordconv_ssd320_perspective_boxes'
