@@ -19,8 +19,8 @@ DATASETS:
   TRAIN: ("perspective_boxes", )
   TEST: ("perspective_boxes", )
 SOLVER:
-  MAX_ITER: 12000
-  LR_STEPS: [5000, 10000]
+  MAX_ITER: 2500
+  LR_STEPS: [1000, 2000]
   GAMMA: 0.1
   BATCH_SIZE: 96
   LR: 1e-3
