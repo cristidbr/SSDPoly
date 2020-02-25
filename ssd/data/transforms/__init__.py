@@ -1,5 +1,7 @@
 from ssd.modeling.anchors.prior_box import PriorBox
+from ssd.modeling.anchors.prior_corner_box import PriorCornerBox
 from .target_transform import SSDTargetTransform
+from .target_corner_transform import SSDTargetCornerBoxTransform
 from .transforms import *
 
 
@@ -27,6 +29,12 @@ def build_transforms(cfg, is_train=True):
 
 
 def build_target_transform(cfg):
+    transform = SSDTargetCornerBoxTransform(PriorCornerBox(cfg)(),
+                                   cfg.MODEL.COORDINATE_VARIANCE,
+                                   cfg.MODEL.THRESHOLD )
+
+    return transform 
+
     transform = SSDTargetTransform(PriorBox(cfg)(),
                                    cfg.MODEL.CENTER_VARIANCE,
                                    cfg.MODEL.SIZE_VARIANCE,

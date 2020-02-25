@@ -1,7 +1,7 @@
 from ssd.modeling import registry
-from .box_head import SSDBoxHead
+from .box_head import SSDBoxHead, SSDCornerBoxHead
 
-__all__ = ['build_box_head', 'SSDBoxHead']
+__all__ = ['build_box_head', 'SSDBoxHead', 'SSDCornerBoxHead']
 
 
 def build_box_head(cfg):

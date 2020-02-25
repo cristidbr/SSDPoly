@@ -22,23 +22,28 @@ def convert_locations_to_corner_boxes(locations, priors, coordinate_variance):
     if priors.dim() + 1 == locations.dim():
         priors = priors.unsqueeze(0)
 
-    prior_sizes = priors[..., 2:] - priors[..., :2]
-    prior_sizes = torch.cat( [ prior_sizes, prior_sizes ], dim = 1 )
-    return 
-        ( locations * coordinate_variance * prior_sizes ) + priors
+    prior_sizes = torch.abs( priors[..., 2:] - priors[..., :2] ) 
 
-
-def convert_perspective_boxes_to_locations(center_form_boxes, center_form_priors, center_variance, size_variance):
-    # priors can have one dimension less
-    if center_form_priors.dim() + 1 == center_form_boxes.dim():
-        center_form_priors = center_form_priors.unsqueeze(0)
     return torch.cat([
-        (center_form_boxes[..., :2] - center_form_priors[..., :2]) / center_form_priors[..., 2:] / center_variance,
-        torch.log(center_form_boxes[..., 2:] / center_form_priors[..., 2:]) / size_variance
-    ], dim=center_form_boxes.dim() - 1)
+        ( locations[..., :2] * coordinate_variance * prior_sizes ) + priors[..., :2],
+        ( locations[..., 2:] * coordinate_variance * prior_sizes ) + priors[..., 2:]
+    ], dim=locations.dim() - 1)
 
 
-def area_of(left_top, right_bottom) -> torch.Tensor:
+def convert_corner_boxes_to_locations(corner_form_boxes, corner_form_priors, coordinate_variance):
+    # priors can have one dimension less
+    if corner_form_priors.dim() + 1 == corner_form_boxes.dim():
+        corner_form_priors = corner_form_priors.unsqueeze(0)
+
+    prior_sizes = torch.abs( corner_form_priors[..., 2:] - corner_form_priors[..., :2] ) 
+
+    return torch.cat([
+        ( corner_form_boxes[..., :2] - corner_form_priors[..., :2]) / prior_sizes / coordinate_variance,
+        ( corner_form_boxes[..., 2:] - corner_form_priors[..., 2:]) / prior_sizes / coordinate_variance
+    ], dim=corner_form_boxes.dim() - 1 )
+
+
+def area_of_corner_boxes( left_top, right_bottom) -> torch.Tensor:
     """Compute the areas of rectangles given two corners.
 
     Args:
@@ -52,7 +57,7 @@ def area_of(left_top, right_bottom) -> torch.Tensor:
     return hw[..., 0] * hw[..., 1]
 
 
-def iou_of(boxes0, boxes1, eps=1e-5):
+def iou_of_corner_boxes(boxes0, boxes1, eps=1e-5):
     """Return intersection-over-union (Jaccard index) of boxes.
 
     Args:
@@ -64,15 +69,15 @@ def iou_of(boxes0, boxes1, eps=1e-5):
     """
     overlap_left_top = torch.max(boxes0[..., :2], boxes1[..., :2])
     overlap_right_bottom = torch.min(boxes0[..., 2:], boxes1[..., 2:])
-
-    overlap_area = area_of(overlap_left_top, overlap_right_bottom)
-    area0 = area_of(boxes0[..., :2], boxes0[..., 2:])
-    area1 = area_of(boxes1[..., :2], boxes1[..., 2:])
+    
+    overlap_area = area_of_corner_boxes(overlap_left_top, overlap_right_bottom)
+    area0 = area_of_corner_boxes(boxes0[..., :2], boxes0[..., 2:])
+    area1 = area_of_corner_boxes(boxes1[..., :2], boxes1[..., 2:])
     return overlap_area / (area0 + area1 - overlap_area + eps)
 
 
-def assign_priors(gt_boxes, gt_labels, corner_form_priors,
-                  iou_threshold):
+def assign_priors_corner_boxes(gt_boxes, gt_labels, corner_form_priors,
+                iou_threshold):
     """Assign ground truth boxes and targets to priors.
 
     Args:
@@ -84,7 +89,7 @@ def assign_priors(gt_boxes, gt_labels, corner_form_priors,
         labels (num_priros): labels for priors.
     """
     # size: num_priors x num_targets
-    ious = iou_of(gt_boxes.unsqueeze(0), corner_form_priors.unsqueeze(1))
+    ious = iou_of_corner_boxes(gt_boxes.unsqueeze(0), corner_form_priors.unsqueeze(1))
     # size: num_priors
     best_target_per_prior, best_target_per_prior_index = ious.max(1)
     # size: num_targets
@@ -101,14 +106,14 @@ def assign_priors(gt_boxes, gt_labels, corner_form_priors,
     return boxes, labels
 
 
-def hard_negative_mining(loss, labels, neg_pos_ratio):
+def hard_negative_mining_corner_boxes(loss, labels, neg_pos_ratio):
     """
     It used to suppress the presence of a large number of negative prediction.
     It works on image level not batch level.
     For any example/image, it keeps all the positive predictions and
-     cut the number of negative predictions to make sure the ratio
-     between the negative examples and positive examples is no more
-     the given ratio for an image.
+        cut the number of negative predictions to make sure the ratio
+        between the negative examples and positive examples is no more
+        the given ratio for an image.
 
     Args:
         loss (N, num_priors): the loss for each example.
@@ -125,10 +130,10 @@ def hard_negative_mining(loss, labels, neg_pos_ratio):
     neg_mask = orders < num_neg
     return pos_mask | neg_mask
 
-
+"""
 def center_form_to_corner_form(locations):
     return torch.cat([locations[..., :2] - locations[..., 2:] / 2,
-                      locations[..., :2] + locations[..., 2:] / 2], locations.dim() - 1)
+                        locations[..., :2] + locations[..., 2:] / 2], locations.dim() - 1)
 
 
 def corner_form_to_center_form(boxes):
@@ -136,3 +141,18 @@ def corner_form_to_center_form(boxes):
         (boxes[..., :2] + boxes[..., 2:]) / 2,
         boxes[..., 2:] - boxes[..., :2]
     ], boxes.dim() - 1)
+
+
+import numpy as np
+
+if __name__ == '__main__':
+    locations = np.array( [ [ [ 200, 200, 750, 750 ], [ 250, 250, 700, 700 ] ] ] ) / np.array( [ 1000, 800, 1000, 800 ] )
+    locations = torch.from_numpy( locations )
+    
+    priors = np.array( [ [ 250, 250, 750, 750 ], [ 100, 100, 900, 900 ] ] ) / np.array( [ 1000, 800, 1000, 800 ] )
+    priors = torch.from_numpy( priors )
+
+    corner_boxes = convert_locations_to_corner_boxes( locations, priors, 0.5  ) 
+    location_boxes = convert_corner_boxes_to_locations( corner_boxes, priors, 0.5 )
+    print( 'BOXES Center2Corners conversions', torch.sum( locations - location_boxes ) )
+"""
