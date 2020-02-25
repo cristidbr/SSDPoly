@@ -205,8 +205,7 @@ class CoordConvNet( nn.Module ):
         input_channel = int(input_channel * width_mult)
         self.last_channel = int(last_channel * max(1.0, width_mult))
         features = [
-            ConvBNReLU( 3, input_channel, stride=2 ),
-            CoordConv2d( input_channel, input_channel, 3, stride = 1, with_r=True )
+            CoordConv2d( 3, input_channel, 3, stride = 2, with_r=True )
         ]
         # building inverted residual blocks
         for t, c, n, s in inverted_residual_setting:
@@ -244,7 +243,8 @@ class CoordConvNet( nn.Module ):
 
     def forward(self, x):
         features = []
-        for i in range(15):
+        it = 0
+        for i in range(14):
             x = self.features[i](x)
         features.append(x)
 
